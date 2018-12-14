@@ -13,7 +13,6 @@ from __future__ import unicode_literals, print_function
 import plac
 import random
 from pathlib import Path
-import thinc.extra.datasets
 
 import spacy
 from spacy.util import minibatch, compounding
@@ -44,8 +43,8 @@ def main(model=None, output_dir=None, n_iter=20, n_texts=2000):
     # add label to text classifier
     textcat.add_label('POSITIVE')
 
-    # load the IMDB dataset
-    print("Loading IMDB data...")
+    # load the dataset
+    print("Loading dataset data...")
     (train_texts, train_cats), (dev_texts, dev_cats) = load_data(limit=n_texts)
     print("Using {} examples ({} training, {} evaluation)"
           .format(n_texts, len(train_texts), len(dev_texts)))
@@ -92,10 +91,29 @@ def main(model=None, output_dir=None, n_iter=20, n_texts=2000):
         doc2 = nlp2(test_text)
         print(test_text, doc2.cats)
 
+def read_data(data_dir, limit=0):
+    examples = []
+    for subdir, label in (('pos', 1), ('neg', 0)):
+        for filename in (data_dir / subdir).iterdir():
+            with filename.open('r', encoding='utf8') as file_:
+                text = file_.read()
+            text = text.replace('<br />', '\n\n')
+            if text.strip():
+                examples.append((text, label))
+    random.shuffle(examples)
+    if limit >= 1:
+        examples = examples[:limit]
+    return examples
+
+def load_dataset(loc, limit=0):
+    train_loc = Path(loc) / 'train'
+    test_loc = Path(loc) / 'test'
+    return read_data(train_loc, limit=limit), read_data(test_loc, limit=limit)
+
 def load_data(limit=0, split=0.8):
     """Load data from the IMDB dataset."""
     # Partition off part of the train data for evaluation
-    train_data, _ = thinc.extra.datasets.imdb()
+    train_data, _ = load_dataset('./aclimdb')
     random.shuffle(train_data)
     train_data = train_data[-limit:]
     texts, labels = zip(*train_data)
